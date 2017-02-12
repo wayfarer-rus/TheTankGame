@@ -1,10 +1,10 @@
+/* global $ */
 $(function () {
     "use strict";
 
     // for better performance - to avoid searching in DOM
     var content = $('#content');
-	var testRect = $('#you');
-
+	
     // if user is running mozilla then use it's built-in WebSocket
     window.WebSocket = window.WebSocket || window.MozWebSocket;
 
@@ -17,7 +17,8 @@ $(function () {
 
     // open connection 
 	// TODO:: dinamic server name
-    var connection = new WebSocket('ws://127.0.0.1:1337');
+	var uriName = 'wss://' + window.location.host;
+    var connection = new WebSocket(uriName);
 
     connection.onopen = function () {
 		// TODO::
