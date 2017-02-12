@@ -1,9 +1,11 @@
 /* global $ */
+var content;
+
 $(function () {
     "use strict";
 
     // for better performance - to avoid searching in DOM
-    var content = $('#content');
+    content = $('#content');
 	
     // if user is running mozilla then use it's built-in WebSocket
     window.WebSocket = window.WebSocket || window.MozWebSocket;
@@ -47,11 +49,8 @@ $(function () {
         // check the server source code above
         if (json.type === 'rectData') {
 			var newPos = json.obj;
-			
-			// apply new pos
-			document.getElementById('you').style.left = newPos.left+'px';
-			document.getElementById('you').style.top = newPos.top+'px';
-			//console.log(testRect);
+			console.log('server pos: [' + newPos.left + ' ; ' + newPos.top + ']')
+			setPosition(newPos);
         } else if (json.type === 'history') {
             
         } else if (json.type === 'message') {
@@ -65,23 +64,37 @@ $(function () {
      * Send mesage when user presses any control key
      */
     $('html').keydown(function(e) {
-		console.log('keyPressed: ' + e.keyCode);
+// 		console.log('keyPressed: ' + e.keyCode);
 		var msg = '';
+		var pos = getPosition();
 		
         if (e.keyCode === 32) { // FIRE (Spacebar)
 			// TODO:
         } else if (e.keyCode === 38) { // UP
 			msg = JSON.stringify({type:'move', data: 'up'});
+			
+			if (pos.top - 10 > 0) pos.top -= 10;
 		} else if (e.keyCode === 40) { // DOWN
 			msg = JSON.stringify({type:'move', data: 'down'});
+			
+			if (pos.top + 10 < 800 ) pos.top += 10;
 		} else if (e.keyCode === 37) { // LEFT
 			msg = JSON.stringify({type:'move', data: 'left'});
+			
+			if (pos.left - 10 > 0) pos.left -= 10;
 		} else if (e.keyCode === 39) { // RIGHT
 			msg = JSON.stringify({type:'move', data: 'right'});
+			
+			if (pos.left + 10 < 800) pos.left += 10;
 		}
 		
 		// send the message as an ordinary text
-        connection.send(msg);
+		if (msg) {
+		    console.log('client pos: [' + pos.left + ' ; ' + pos.top + ']')
+		    setPosition(pos);
+		    connection.send(msg);
+		}
+		
     });
 
     /**
@@ -96,3 +109,40 @@ $(function () {
     }, 5000);
 
 });
+
+function setPosition(pos) {
+    var you = document.getElementById('you');
+    var yourPos = you.style;
+    var pxPos = {};
+    pxPos.left = pos.left+'px';
+    pxPos.top = pos.top+'px';
+    
+    if (yourPos.left !== pxPos.left || yourPos.top !== pxPos.top) {
+        // apply new pos
+        yourPos.left = pxPos.left;
+        yourPos.top = pxPos.top;
+        forceRedraw(you);
+    }
+}
+
+function getPosition() {
+    var pos = {};
+    pos.left = document.getElementById('you').style.left.replace('px', '');
+    pos.top = document.getElementById('you').style.top.replace('px', '');
+    return pos;
+}
+
+function forceRedraw(element) {
+    if (!element) { return; }
+
+    var n = document.createTextNode(' ');
+    var disp = element.style.display;  // don't worry about previous display style
+
+    element.appendChild(n);
+    element.style.display = 'none';
+
+    setTimeout(function(){
+        element.style.display = disp;
+        n.parentNode.removeChild(n);
+    },1); // you can play with this timeout to make it as short as possible
+}

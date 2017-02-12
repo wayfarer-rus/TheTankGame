@@ -14,12 +14,11 @@ var http = require('http');
 /**
  * Global variables
  */
-// latest 100 messages
-var history = [ ];
 // list of currently connected clients (users)
 var clients = [ ];
 
 var testRectPos = {top: 100, left: 100};
+var timerId; // broadcast timer
 
 var finalhandler = require('finalhandler');
 var serveStatic = require('serve-static');
@@ -69,19 +68,15 @@ wsServer.on('request', function(request) {
     var connection = request.accept(null, request.origin); 
     // we need to know client index to remove them on 'close' event
     var index = clients.push(connection) - 1;
-    var userName = false;
-    var userColor = false;
 
     console.log((new Date()) + ' Connection accepted.');
 
-    // send back chat history
-    if (history.length > 0) {
-        connection.sendUTF(JSON.stringify( { type: 'history', data: history} ));
-    }
-
+    // send current position
+    connection.sendUTF(JSON.stringify({type: 'rectData', obj: testRectPos}));
+    
     // user sent some message
     connection.on('message', function(message) {
-        console.log((new Date()) + ' Received Message ' + message.utf8Data);
+        // console.log((new Date()) + ' Received Message ' + message.utf8Data);
 		try {
 			var userEvent = JSON.parse(message.utf8Data);
 		} catch (e) {
@@ -90,9 +85,9 @@ wsServer.on('request', function(request) {
         }
 		
         if (userEvent.type == 'move') {
-			console.log('moving...');
+// 			console.log('moving...');
 			if (userEvent.data === 'up' && testRectPos.top-10 > 0) {
-				// move up and send new data
+				// move up
 				testRectPos.top -=10;
 			} else if (userEvent.data === 'down' && testRectPos.top+10 < 800) {
 				// move down
@@ -103,21 +98,32 @@ wsServer.on('request', function(request) {
 				testRectPos.left +=10;
 			}
 		}
-        // broadcast message to all connected clients
-        var json = JSON.stringify({type: 'rectData', obj: testRectPos});
-        for (var i=0; i < clients.length; i++) {
-            clients[i].sendUTF(json);
-        }
+		
+// 		if (moveCount === 60) {
+// 		    moveCount = 0;
+//             // broadcast message to all connected clients
+//             var json = JSON.stringify({type: 'rectData', obj: testRectPos});
+//             for (var i=0; i < clients.length; i++) {
+//                 clients[i].sendUTF(json);
+//             }
+// 		}
     });
+    
+    timerId = setInterval(function() {
+            // broadcast message to all connected clients
+            var json = JSON.stringify({type: 'rectData', obj: testRectPos});
+            for (var i=0; i < clients.length; i++) {
+                clients[i].sendUTF(json);
+            }
+        }, 1000);
+    
 
     // user disconnected
     connection.on('close', function(connection) {
-        if (userName !== false && userColor !== false) {
-            console.log((new Date()) + " Peer "
+        clearInterval(timerId);
+        console.log((new Date()) + " Peer "
                 + connection.remoteAddress + " disconnected.");
-            // remove user from the list of connected clients
-            clients.splice(index, 1);
-        }
+        clients.splice(index, 1);
     });
 
 });
